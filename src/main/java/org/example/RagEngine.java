@@ -13,6 +13,8 @@ import dev.langchain4j.service.AiServices;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.EmbeddingStoreIngestor;
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URL;
 import java.nio.file.Path;
@@ -20,6 +22,7 @@ import java.nio.file.Paths;
 import java.util.List;
 
     public class RagEngine {
+        private static final Logger log = LoggerFactory.getLogger(RagEngine.class);
 
         interface Assistant {
             String chat(String question);
@@ -27,17 +30,14 @@ import java.util.List;
 
 
         public static void main(String[] args) {
-            // STEP 1: Load RPG files - This is your Knowledge Base
             Path rpgFolder = Paths.get("C:/Users/gaina/Documents/javaProjects/ibmi-rag-modernizer/target/classes/RPG");
             URL url = RagEngine.class.getClassLoader().getResource("RPG");
-            System.out.println(url);
             List<Document> documents = FileSystemDocumentLoader.loadDocuments(rpgFolder);
-            System.out.println("Loaded RPG files: " + documents.size());
+            log.info("Loaded RPG files: " + documents.size());
 
             // STEP 2: Create Embedding Model - Converts text to numbers
             EmbeddingModel embeddingModel = new AllMiniLmL6V2EmbeddingModel();
             GuardRailService guardRailService = new GuardRailService();
-
 
             // STEP 3: Create Vector Store - In-Memory DB to store numbers
             EmbeddingStore<TextSegment> embeddingStore = new InMemoryEmbeddingStore<>();
@@ -48,7 +48,7 @@ import java.util.List;
                     .embeddingModel(embeddingModel)
                     .build();
             ingestor.ingest(documents);
-            System.out.println("RAG Ingestion Done! RPG code is now searchable.");
+            log.info("RAG Ingestion Done! RPG code is now searchable.");
 
             // STEP 5: Create Retriever - Finds relevant RPG chunk for question
             EmbeddingStoreContentRetriever retriever = EmbeddingStoreContentRetriever.builder()
@@ -79,9 +79,9 @@ import java.util.List;
                     .build();
 
             // STEP 8: Ask Questions - Test RAG
-            System.out.println("\n--- TEST 1: Without RAG it would guess ---");
+            log.info("\n--- TEST 1: Without RAG it would guess ---");
             String q1 = "What is the data type of CustBal in CUSTMST? How to convert it to Java?";
-            System.out.println("Q: " + q1);
+            log.info("Q: " + q1);
             try {
                 // GATE 1: Input Guardrail
                 guardRailService.checkInput(q1);
@@ -92,16 +92,16 @@ import java.util.List;
                 // GATE 2: Output Guardrail
                 String safeAnswer = guardRailService.checkOutput(rawAnswer);
 
-                System.out.println("FINAL ANSWER: " + safeAnswer);
+                log.info("FINAL ANSWER: " + safeAnswer);
 
             } catch (IllegalArgumentException e) {
-                System.out.println(e.getMessage());
-                System.out.println("Request blocked by Guardrail, not sent to Gemini.");
+                log.error(e.getMessage());
+                log.error("Request blocked by Guardrail, not sent to Gemini.");
             }
 
-            System.out.println("\n--- TEST 2: COMMIT check ---");
+            log.info("\n--- TEST 2: COMMIT check ---");
             String q2 = "In UpdateBalance procedure, what should we do after UPDATE in Java conversion?";
-            System.out.println("Q: " + q2);
+            log.info("Q: " + q2);
             try {
                 // GATE 1: Input Guardrail
                 guardRailService.checkInput(q2);
@@ -112,11 +112,11 @@ import java.util.List;
                 // GATE 2: Output Guardrail
                 String safeAnswer = guardRailService.checkOutput(rawAnswer);
 
-                System.out.println("FINAL ANSWER: " + safeAnswer);
+                log.info("FINAL ANSWER: " + safeAnswer);
 
             } catch (IllegalArgumentException e) {
-                System.out.println(e.getMessage());
-                System.out.println("Request blocked by Guardrail, not sent to Gemini.");
+                log.error(e.getMessage());
+                log.error("Request blocked by Guardrail, not sent to Gemini.");
             }
         }
     }
